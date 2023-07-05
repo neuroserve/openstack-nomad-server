@@ -132,9 +132,6 @@ resource "openstack_compute_keypair_v2" "user_keypair" {
   public_key = file("${var.config.keypair}")
 }
 
-
-# Security rules need attention
-
 resource "openstack_networking_secgroup_v2" "sg_nomad" {
   name        = "sg_nomad"
   description = "Security Group for servergroup"
@@ -239,6 +236,47 @@ resource "openstack_networking_secgroup_rule_v2" "sr_8501tcp" {
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
 }
+
+resource "openstack_networking_secgroup_rule_v2" "sr_4646tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 4646
+  port_range_max    = 4646
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_4647tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 4647
+  port_range_max    = 4647
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_4648tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 4648
+  port_range_max    = 4648
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_4648udp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 4648
+  port_range_max    = 4648
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
 
 resource "openstack_networking_floatingip_v2" "nomad_flip" {
   count = var.config.server_replicas
