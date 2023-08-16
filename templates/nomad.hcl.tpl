@@ -4,6 +4,7 @@ region             = "${os_region}"
 datacenter         = "${datacenter_name}"
 server {
   enabled          = true
+  encrypt          = "${nomad_encryption_key}"
   bootstrap_expect = ${bootstrap_expect}
   server_join {
     retry_join     = [ "provider=os tag_key=nomad-role tag_value=server auth_url=${auth_url} user_name=${user_name} domain_name=${os_domain_name} password=\"${password}\" region=${os_region}" ] 
