@@ -1,5 +1,5 @@
 locals {
-    nomad_version="1.6.0-beta.1"
+    nomad_version="1.6.0"
     consul_version="1.16.0"
     envoy_version="1.25.6"
 }
@@ -122,6 +122,10 @@ resource "tls_locally_signed_cert" "consul" {
     ]
 }
 
+resource "random_id" "nomad_encryption_key" {
+    byte_length = 32
+}
+
 data "openstack_images_image_v2" "os" {
   name        = "debian-11-consul"
   most_recent = "true"
@@ -173,6 +177,36 @@ resource "openstack_networking_secgroup_rule_v2" "sr_8300tcp" {
   protocol          = "tcp"
   port_range_min    = 8300
   port_range_max    = 8300
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8300udp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 8300
+  port_range_max    = 8300
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8301tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8301
+  port_range_max    = 8301
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8301udp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "udp"
+  port_range_min    = 8301
+  port_range_max    = 8301
   remote_ip_prefix  = "0.0.0.0/0"
   security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
 }
@@ -402,7 +436,7 @@ resource "openstack_compute_instance_v2" "nomad" {
             os_domain_name = var.config.os_domain_name,
             node_name = "nomad-${count.index}",
             bootstrap_expect = var.config.server_replicas,
-            encryption_key = var.config.consul_encryption_key,
+            nomad_encryption_key = random_id.nomad_encryption_key.b64_std,
             upstream_dns_servers = var.config.dns_servers,
             auth_url = "${var.auth_url}",
             user_name = "${var.user_name}",
@@ -463,5 +497,10 @@ resource "openstack_compute_instance_v2" "nomad" {
 resource "openstack_compute_servergroup_v2" "nomadcluster" {
   name = "aaf-sg"
   policies = ["anti-affinity"]
+}
+
+output "nomad_encryption_key" {
+    sensitive = true
+    value = random_id.nomad_encryption_key.b64_std
 }
 
