@@ -1,5 +1,5 @@
 locals {
-    nomad_version="1.6.0"
+    nomad_version="1.7.2"
     consul_version="1.16.0"
     envoy_version="1.25.6"
 }
@@ -436,12 +436,14 @@ resource "openstack_compute_instance_v2" "nomad" {
             os_domain_name = var.config.os_domain_name,
             node_name = "nomad-${count.index}",
             bootstrap_expect = var.config.server_replicas,
-            nomad_encryption_key = random_id.nomad_encryption_key.b64_std,
+#           nomad_encryption_key = random_id.nomad_encryption_key.b64_std,
+            nomad_encryption_key = var.config.nomad_encryption_key,
             upstream_dns_servers = var.config.dns_servers,
             auth_url = "${var.auth_url}",
             user_name = "${var.user_name}",
             password = "${var.password}",
             os_region   = "${var.config.os_region}",
+            floatingip = "${element(openstack_networking_floatingip_v2.nomad_flip.*.address, count.index)}",
         })
         destination = "/etc/nomad/nomad.hcl"
    }
