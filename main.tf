@@ -141,15 +141,15 @@ resource "openstack_networking_secgroup_v2" "sg_nomad" {
   description = "Security Group for servergroup"
 }
 
-resource "openstack_networking_secgroup_rule_v2" "sr_ssh" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 22
-  port_range_max    = 22
-  remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
-}
+#resource "openstack_networking_secgroup_rule_v2" "sr_ssh" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 22
+#  port_range_max    = 22
+#  remote_ip_prefix  = "0.0.0.0/0"
+#  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+#}
 
 resource "openstack_networking_secgroup_rule_v2" "sr_dns1" {
   direction         = "ingress"
@@ -329,7 +329,7 @@ resource "openstack_compute_instance_v2" "nomad" {
   flavor_name     = var.config.flavor_name
   key_pair        = openstack_compute_keypair_v2.user_keypair.name
   count           = var.config.server_replicas
-  security_groups = ["sg_nomad", "default"]   
+  security_groups = ["sg_nomad"]   
   scheduler_hints {
     group = openstack_compute_servergroup_v2.nomadcluster.id
   }
@@ -430,6 +430,14 @@ resource "openstack_compute_instance_v2" "nomad" {
    }
 
    provisioner "file" {
+        content = templatefile("${path.module}/templates/nomad-tls.env.tpl", {
+            nomad_ip = self.access_ip_v4,
+        }) 
+        destination = "/root/nomad-tls.env"
+   }
+
+
+   provisioner "file" {
         content = templatefile("${path.module}/templates/nomad.hcl.tpl", {
             datacenter_name = var.config.datacenter_name,
             domain_name = var.config.domain_name,
@@ -443,6 +451,7 @@ resource "openstack_compute_instance_v2" "nomad" {
             user_name = "${var.user_name}",
             password = "${var.password}",
             os_region   = "${var.config.os_region}",
+            auth_region = "${var.config.auth_region}",
             floatingip = "${element(openstack_networking_floatingip_v2.nomad_flip.*.address, count.index)}",
         })
         destination = "/etc/nomad/nomad.hcl"
