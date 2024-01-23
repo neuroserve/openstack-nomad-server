@@ -1,7 +1,7 @@
 locals {
-    nomad_version="1.7.2"
-    consul_version="1.16.0"
-    envoy_version="1.25.6"
+    nomad_version="1.7.3"
+    consul_version="1.17.1"
+    envoy_version="1.29.0"
 }
 
 variable "auth_url" {
