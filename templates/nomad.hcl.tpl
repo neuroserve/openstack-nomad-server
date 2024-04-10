@@ -1,6 +1,6 @@
 data_dir           = "/opt/nomad"                                                                                                                                                                                   
 enable_syslog      = true
-region             = "${os_region}"
+region             = "${ps_region}"
 datacenter         = "${datacenter_name}"
 
 advertise {
@@ -31,6 +31,16 @@ client {
   enabled = false
 }
 
+consul {
+  grpc_ca_file = "/etc/consul/certificates/ca.pem"
+  grpc_address = "127.0.0.1:8503"
+  ca_file      = "/etc/consul/certificates/ca.pem"
+  cert_file    = "/etc/consul/certificates/cert.pem"
+  key_file     = "/etc/consul/certificates/private_key.pem"
+  ssl          = true
+  address      = "127.0.0.1:8501"
+  token        = "${consul-token}"
+}
 
 tls {
   http = true

@@ -1,6 +1,6 @@
 locals {
-    nomad_version="1.7.3"
-    consul_version="1.17.1"
+    nomad_version="1.7.6"
+    consul_version="1.17.3"
     envoy_version="1.29.0"
 }
 
@@ -55,6 +55,10 @@ resource "tls_cert_request" "nomad" {
         "nomad.local",
         "server.${var.config.datacenter_name}.nomad",
         "nomad.service.${var.config.domain_name}",
+        "nomad-${var.config.datacenter_name}-${count.index}.server.${var.config.domain_name}.nomad",
+        "nomad-${count.index}.server.${var.config.domain_name}.nomad"
+        "localhost",
+        "127.0.0.1",
     ]
 
     subject {
@@ -96,6 +100,8 @@ resource "tls_cert_request" "consul" {
     dns_names = [
         "consul",
         "consul.local",
+        "localhost",
+        "127.0.0.1",
     ]
 
     subject {
@@ -141,15 +147,15 @@ resource "openstack_networking_secgroup_v2" "sg_nomad" {
   description = "Security Group for servergroup"
 }
 
-#resource "openstack_networking_secgroup_rule_v2" "sr_ssh" {
-#  direction         = "ingress"
-#  ethertype         = "IPv4"
-#  protocol          = "tcp"
-#  port_range_min    = 22
-#  port_range_max    = 22
-#  remote_ip_prefix  = "0.0.0.0/0"
-#  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
-#}
+resource "openstack_networking_secgroup_rule_v2" "sr_ssh" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 22
+  port_range_max    = 22
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
 
 resource "openstack_networking_secgroup_rule_v2" "sr_dns1" {
   direction         = "ingress"
@@ -271,6 +277,26 @@ resource "openstack_networking_secgroup_rule_v2" "sr_8501tcp" {
   security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "sr_8502tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8502
+  port_range_max    = 8502
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
+resource "openstack_networking_secgroup_rule_v2" "sr_8503tcp" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8503
+  port_range_max    = 8503
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = openstack_networking_secgroup_v2.sg_nomad.id
+}
+
 resource "openstack_networking_secgroup_rule_v2" "sr_4646tcp" {
   direction         = "ingress"
   ethertype         = "IPv4"
@@ -324,7 +350,7 @@ resource "openstack_compute_floatingip_associate_v2" "nomad_flip" {
 }
 
 resource "openstack_compute_instance_v2" "nomad" {
-  name            = "nomad-${count.index}"
+  name            = "nomad-${var.config.datacenter_name}-${count.index}"
   image_id        = data.openstack_images_image_v2.os.id
   flavor_name     = var.config.flavor_name
   key_pair        = openstack_compute_keypair_v2.user_keypair.name
@@ -361,6 +387,7 @@ resource "openstack_compute_instance_v2" "nomad" {
   provisioner "remote-exec" {
         inline = [
             "sudo apt-get update",
+            "sudo apt install -y tmux telnet dnsutils",
             "sudo mkdir -p /etc/nomad/certificates",
             "sudo mkdir -p /opt/nomad",
             "sudo useradd --system --home /etc/nomad --shell /bin/false nomad",
@@ -371,7 +398,6 @@ resource "openstack_compute_instance_v2" "nomad" {
 
   provisioner "remote-exec" {
         inline = [
-            "sudo apt-get update",
             "sudo mkdir -p /etc/consul/certificates",
             "sudo mkdir -p /opt/consul",
             "sudo useradd -d /opt/consul consul",
@@ -451,8 +477,10 @@ resource "openstack_compute_instance_v2" "nomad" {
             user_name = "${var.user_name}",
             password = "${var.password}",
             os_region   = "${var.config.os_region}",
+            ps_region   = "${var.config.ps_region}",
             auth_region = "${var.config.auth_region}",
             floatingip = "${element(openstack_networking_floatingip_v2.nomad_flip.*.address, count.index)}",
+            consul-token =  var.config.consul_token_for_nomad_servers 
         })
         destination = "/etc/nomad/nomad.hcl"
    }
