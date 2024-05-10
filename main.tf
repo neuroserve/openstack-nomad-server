@@ -55,8 +55,9 @@ resource "tls_cert_request" "nomad" {
         "nomad.local",
         "server.${var.config.datacenter_name}.nomad",
         "nomad.service.${var.config.domain_name}",
+        "nomad-${var.config.datacenter_name}-${count.index}",
         "nomad-${var.config.datacenter_name}-${count.index}.server.${var.config.domain_name}.nomad",
-        "nomad-${count.index}.server.${var.config.domain_name}.nomad"
+        "nomad-${count.index}.server.${var.config.domain_name}.nomad",
         "localhost",
         "127.0.0.1",
     ]
@@ -105,6 +106,7 @@ resource "tls_cert_request" "consul" {
         "consul",
         "consul.local",
         "localhost",
+        "nomad-${var.config.datacenter_name}-${count.index}",
         "127.0.0.1",
     ]
 
@@ -395,7 +397,7 @@ resource "openstack_compute_instance_v2" "nomad" {
   provisioner "remote-exec" {
         inline = [
             "sudo apt-get update",
-            "sudo apt install -y tmux telnet dnsutils",
+            "sudo apt install -y tmux telnet dnsutils dnsmasq",
             "sudo mkdir -p /etc/nomad/certificates",
             "sudo mkdir -p /opt/nomad",
             "sudo useradd --system --home /etc/nomad --shell /bin/false nomad",
@@ -470,13 +472,22 @@ resource "openstack_compute_instance_v2" "nomad" {
         destination = "/root/nomad-tls.env"
    }
 
+   provisioner "file" {
+    source = "${path.root}/files/10-consul.dnsmasq"
+    destination = "/etc/dnsmasq.d/10-consul"
+   }
+
+   provisioner "file" {
+    source = "${path.root}/files/dnsmasq.conf"
+    destination = "/etc/dnsmasq.conf"
+   }
 
    provisioner "file" {
         content = templatefile("${path.module}/templates/nomad.hcl.tpl", {
             datacenter_name = var.config.datacenter_name,
             domain_name = var.config.domain_name,
             os_domain_name = var.config.os_domain_name,
-            node_name = "nomad-${count.index}",
+            node_name = "nomad-${var.config.datacenter_name}-${count.index}",
             bootstrap_expect = var.config.server_replicas,
 #           nomad_encryption_key = random_id.nomad_encryption_key.b64_std,
             nomad_encryption_key = var.config.nomad_encryption_key,
@@ -488,7 +499,7 @@ resource "openstack_compute_instance_v2" "nomad" {
             ps_region   = "${var.config.ps_region}",
             auth_region = "${var.config.auth_region}",
             floatingip = "${element(openstack_networking_floatingip_v2.nomad_flip.*.address, count.index)}",
-            consul-token =  var.config.consul_token_for_nomad_servers 
+            token =  "${var.config.nomad_server_token}",
         })
         destination = "/etc/nomad/nomad.hcl"
    }
@@ -496,7 +507,8 @@ resource "openstack_compute_instance_v2" "nomad" {
   provisioner "file" {
      content = templatefile("${path.module}/templates/consul.hcl.tpl", {
         datacenter_name = var.config.consul_datacenter_name,
-        node_name = "nomad-${count.index}"
+   #    node_name = "nomad-${count.index}"
+        node_name = "nomad-${var.config.datacenter_name}-${count.index}",
         encryption_key = var.config.consul_encryption_key,
         os_domain_name = var.config.os_domain_name,
         auth_url = "${var.auth_url}",
@@ -537,6 +549,17 @@ resource "openstack_compute_instance_v2" "nomad" {
             "mv /tmp/nomad /usr/local/bin/nomad",
             "sudo systemctl enable nomad",
             "sudo systemctl start nomad",
+        ]
+   }
+
+   provisioner "remote-exec" {
+        inline = [
+            "sudo apt-get install -y dnsmasq",
+            "sudo systemctl disable systemd-resolved",
+            "sudo systemctl stop systemd-resolved",
+            "sudo systemctl enable dnsmasq",
+            "sudo systemctl start dnsmasq",
+            "sudo systemctl daemon-reload",
         ]
    }
 }

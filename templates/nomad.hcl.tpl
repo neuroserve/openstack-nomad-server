@@ -39,7 +39,9 @@ consul {
   key_file     = "/etc/consul/certificates/private_key.pem"
   ssl          = true
   address      = "127.0.0.1:8501"
-  token        = "${consul-token}"
+  auto_advertise = true
+  server_service_name = "${node_name}"
+  token        = "${token}"
 }
 
 tls {
