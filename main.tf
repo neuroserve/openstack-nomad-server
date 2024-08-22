@@ -1,6 +1,6 @@
 locals {
-    nomad_version="1.7.6"
-    consul_version="1.17.3"
+    nomad_version="1.8.3"
+    consul_version="1.19.1"
     envoy_version="1.29.0"
 }
 
@@ -381,6 +381,7 @@ resource "openstack_compute_instance_v2" "nomad" {
   metadata = {
      nomad-role = "server"
      consul-role = "client"
+     ps_restart_after_maint = "true"
   }
 
   connection {
@@ -543,7 +544,7 @@ resource "openstack_compute_instance_v2" "nomad" {
    provisioner "remote-exec" {
         inline = [
             "cd /tmp ; wget --no-check-certificate https://releases.hashicorp.com/nomad/${local.nomad_version}/nomad_${local.nomad_version}_linux_amd64.zip",
-            "cd /tmp ; unzip nomad_${local.nomad_version}_linux_amd64.zip",
+            "cd /tmp ; unzip -o nomad_${local.nomad_version}_linux_amd64.zip",
             "cd /tmp ; rm nomad_${local.nomad_version}_linux_amd64.zip",
 
             "mv /tmp/nomad /usr/local/bin/nomad",
